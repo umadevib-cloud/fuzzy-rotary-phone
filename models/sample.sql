@@ -1,1 +1,1 @@
-select current_account()
+select current_account() as account_id
