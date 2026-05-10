@@ -1,0 +1,64 @@
+name: dbt CI/CD
+
+on:
+  pull_request:   # CI runs on PRs
+    branches: [main]
+  push:           # CD runs on merges
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dbt
+        run: pip install dbt-snowflake
+
+      - name: Configure dbt profiles
+        run: |
+          mkdir -p ~/.dbt
+          echo "my_project:" > ~/.dbt/profiles.yml
+          echo "  target: dev" >> ~/.dbt/profiles.yml
+          echo "  outputs:" >> ~/.dbt/profiles.yml
+          echo "    dev:" >> ~/.dbt/profiles.yml
+          echo "      type: snowflake" >> ~/.dbt/profiles.yml
+          echo "      account: ${{ secrets.SNOWFLAKE_ACCOUNT }}" >> ~/.dbt/profiles.yml
+          echo "      user: ${{ secrets.SNOWFLAKE_USER }}" >> ~/.dbt/profiles.yml
+          echo "      password: ${{ secrets.SNOWFLAKE_PASSWORD }}" >> ~/.dbt/profiles.yml
+          echo "      role: DEV_ROLE" >> ~/.dbt/profiles.yml
+          echo "      database: DEV_DB" >> ~/.dbt/profiles.yml
+          echo "      schema: DEV_SCHEMA" >> ~/.dbt/profiles.yml
+          echo "      warehouse: DEV_WH" >> ~/.dbt/profiles.yml
+
+      - name: Run dbt debug
+        run: dbt debug --target dev
+
+      - name: Run dbt models
+        run: dbt run --target dev
+
+      - name: Run dbt tests
+        run: dbt test --target dev
+
+  cd:
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dbt
+        run: pip install dbt-snowflake
+      - name: Deploy to QA
+        run: dbt build --target qa
+      - name: Deploy to Prod
+        if: github.event_name == 'workflow_dispatch'
+        run: dbt build --target prod
