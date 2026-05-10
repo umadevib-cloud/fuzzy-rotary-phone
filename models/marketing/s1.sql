@@ -1,7 +1,6 @@
 {{ config(
     materialized='table',
-    database='RAW',
-    schema='STRIPE'
+    database='RAW'
 ) }}
 
 select current_database() as account_id
