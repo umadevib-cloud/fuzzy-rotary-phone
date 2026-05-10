@@ -1,1 +1,1 @@
-select current_database()
+select current_account() as account_id
